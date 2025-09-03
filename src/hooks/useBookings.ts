@@ -1,82 +1,112 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Booking, CreateBookingRequest } from '../types';
 import { apiService } from '../services/api';
+import { useNotification } from '../contexts';
 
 interface UseBookingsReturn {
   bookings: Booking[];
   isLoading: boolean;
-  error: string | null;
   createBooking: (bookingData: CreateBookingRequest) => Promise<{ success: boolean; error?: string }>;
-  cancelBooking: (bookingId: string) => Promise<{ success: boolean; error?: string }>;
+  cancelBooking: (bookingId: string, employeeName: string) => Promise<{ success: boolean; error?: string }>;
   refreshBookings: () => Promise<void>;
+  clearError: () => void;
+  isCreating: boolean;
+  isCancelling: boolean;
 }
 
 export const useBookings = (): UseBookingsReturn => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const { showError } = useNotification();
+
+  const clearError = useCallback(() => {
+    // This is now handled by the notification system
+  }, []);
 
   const refreshBookings = useCallback(async () => {
     setIsLoading(true);
-    setError(null);
 
     try {
       const response = await apiService.getAllBookings();
-      
+
       if (response.success && response.data) {
         setBookings(response.data);
       } else {
-        setError(response.error || 'Failed to fetch bookings');
+        showError(response.error || 'Failed to fetch bookings');
         setBookings([]);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
-      setError(errorMessage);
+      showError(errorMessage);
       setBookings([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [showError]);
 
-  const createBooking = useCallback(async (bookingData: CreateBookingRequest) => {
+  const createBooking = useCallback(async (
+    bookingData: CreateBookingRequest // eslint-disable-line @typescript-eslint/no-unused-vars
+  ) => {
+    setIsCreating(true);
+
     try {
       const response = await apiService.createBooking(bookingData);
-      
+
       if (response.success && response.data) {
         // Add the new booking to the current list
         setBookings(prev => [response.data!, ...prev]);
         return { success: true };
       } else {
-        return { 
-          success: false, 
-          error: response.error || 'Failed to create booking' 
+        const errorMsg = response.error || 'Failed to create booking';
+        showError(errorMsg);
+        return {
+          success: false,
+          error: errorMsg
         };
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
-      return { success: false, error: errorMessage };
+      showError(errorMessage);
+      return {
+        success: false,
+        error: errorMessage
+      };
+    } finally {
+      setIsCreating(false);
     }
-  }, []);
+  }, [showError]);
 
-  const cancelBooking = useCallback(async (bookingId: string) => {
+  const cancelBooking = useCallback(async (bookingId: string, employeeName: string) => {
+    setIsCancelling(true);
+
     try {
-      const response = await apiService.cancelBooking(bookingId);
-      
-      if (response.success) {
-        // Remove the booking from the current list
+      const response = await apiService.cancelBooking(bookingId, employeeName);
+
+      if (response.success && response.data?.deleted) {
+        // Remove the cancelled booking from the current list
         setBookings(prev => prev.filter(booking => booking.id !== bookingId));
         return { success: true };
       } else {
-        return { 
-          success: false, 
-          error: response.error || 'Failed to cancel booking' 
+        const errorMsg = response.error || 'Failed to cancel booking';
+        showError(errorMsg);
+        return {
+          success: false,
+          error: errorMsg
         };
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
-      return { success: false, error: errorMessage };
+      showError(errorMessage);
+      return {
+        success: false,
+        error: errorMessage
+      };
+    } finally {
+      setIsCancelling(false);
     }
-  }, []);
+  }, [showError]);
 
   // Load bookings on component mount
   useEffect(() => {
@@ -86,9 +116,11 @@ export const useBookings = (): UseBookingsReturn => {
   return {
     bookings,
     isLoading,
-    error,
     createBooking,
     cancelBooking,
     refreshBookings,
+    clearError,
+    isCreating,
+    isCancelling,
   };
 };

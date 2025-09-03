@@ -20,12 +20,12 @@ export const ActiveParkingScreen: React.FC<ActiveParkingScreenProps> = ({
 
   useEffect(() => {
     const startTime = new Date(session.startTime).getTime();
-    
+
     const timer = setInterval(() => {
       const now = Date.now();
       const elapsed = Math.floor((now - startTime) / 1000 / 60); // minutes
       setElapsedTime(elapsed);
-      
+
       // Calculate cost based on hourly rate
       const hours = elapsed / 60;
       const cost = Math.min(

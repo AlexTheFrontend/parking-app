@@ -10,7 +10,7 @@ interface ApiResponse<T> {
   error?: string;
 }
 
-// Helper function to validate date format (YYYY-MM-DD)
+// Enhanced validation functions
 function isValidDate(dateString: string): boolean {
   const regex = /^\d{4}-\d{2}-\d{2}$/;
   if (!regex.test(dateString)) return false;
@@ -22,6 +22,19 @@ function isValidDate(dateString: string): boolean {
   return date >= today && !isNaN(date.getTime());
 }
 
+function isValidEmployeeName(name: string): boolean {
+  // Employee name should be 2-50 characters, alphanumeric + spaces
+  const regex = /^[a-zA-Z0-9\s]{2,50}$/;
+  return regex.test(name.trim());
+}
+
+function isBusinessDay(dateString: string): boolean {
+  const date = new Date(dateString);
+  const day = date.getDay();
+  // 0 = Sunday, 6 = Saturday
+  return day !== 0 && day !== 6;
+}
+
 // GET /api/bookings - Get all bookings
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -30,14 +43,14 @@ router.get('/', async (req: Request, res: Response) => {
       success: true,
       data: bookings
     };
-    res.json(response);
+    return res.json(response);
   } catch (error) {
     console.error('Error fetching bookings:', error);
     const response: ApiResponse<never> = {
       success: false,
       error: 'Failed to fetch bookings'
     };
-    res.status(500).json(response);
+    return res.status(500).json(response);
   }
 });
 
@@ -46,10 +59,10 @@ router.get('/:date', async (req: Request, res: Response) => {
   try {
     const { date } = req.params;
     
-    if (!isValidDate(date)) {
+    if (!date || !isValidDate(date)) {
       const response: ApiResponse<never> = {
         success: false,
-        error: 'Invalid date format. Use YYYY-MM-DD'
+        error: 'Invalid date format. Use YYYY-MM-DD and date must be today or in the future'
       };
       return res.status(400).json(response);
     }
@@ -59,14 +72,14 @@ router.get('/:date', async (req: Request, res: Response) => {
       success: true,
       data: booking
     };
-    res.json(response);
+    return res.json(response);
   } catch (error) {
     console.error('Error fetching booking:', error);
     const response: ApiResponse<never> = {
       success: false,
       error: 'Failed to fetch booking'
     };
-    res.status(500).json(response);
+    return res.status(500).json(response);
   }
 });
 
@@ -75,7 +88,7 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const { employeeName, date }: CreateBookingRequest = req.body;
 
-    // Validation
+    // Enhanced validation
     if (!employeeName || !employeeName.trim()) {
       const response: ApiResponse<never> = {
         success: false,
@@ -84,10 +97,27 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json(response);
     }
 
+    if (!isValidEmployeeName(employeeName)) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: 'Employee name must be 2-50 characters long and contain only letters, numbers, and spaces'
+      };
+      return res.status(400).json(response);
+    }
+
     if (!date || !isValidDate(date)) {
       const response: ApiResponse<never> = {
         success: false,
-        error: 'Valid date is required (YYYY-MM-DD, not in the past)'
+        error: 'Valid date is required (YYYY-MM-DD, must be today or in the future)'
+      };
+      return res.status(400).json(response);
+    }
+
+    // Business rule: Only allow business day bookings
+    if (!isBusinessDay(date)) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: 'Bookings are only allowed on business days (Monday-Friday)'
       };
       return res.status(400).json(response);
     }
@@ -102,6 +132,24 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(409).json(response);
     }
 
+    // Check if employee already has a booking within 7 days
+    const employeeBookings = await db.getBookingsByEmployee(employeeName.trim());
+    const hasRecentBooking = employeeBookings.some(booking => {
+      const bookingDate = new Date(booking.date);
+      const newDate = new Date(date);
+      const diffTime = Math.abs(newDate.getTime() - bookingDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays <= 7;
+    });
+
+    if (hasRecentBooking) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: 'You already have a booking within 7 days. Please wait before booking again.'
+      };
+      return res.status(400).json(response);
+    }
+
     // Create booking
     const newBooking = await db.createBooking({
       employeeName: employeeName.trim(),
@@ -112,14 +160,14 @@ router.post('/', async (req: Request, res: Response) => {
       success: true,
       data: newBooking
     };
-    res.status(201).json(response);
+    return res.status(201).json(response);
   } catch (error) {
     console.error('Error creating booking:', error);
     const response: ApiResponse<never> = {
       success: false,
       error: 'Failed to create booking'
     };
-    res.status(500).json(response);
+    return res.status(500).json(response);
   }
 });
 
@@ -127,6 +175,7 @@ router.post('/', async (req: Request, res: Response) => {
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { employeeName } = req.body; // Require employee name for ownership validation
 
     if (!id || !id.trim()) {
       const response: ApiResponse<never> = {
@@ -136,9 +185,17 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return res.status(400).json(response);
     }
 
-    const deleted = await db.deleteBooking(id);
-    
-    if (!deleted) {
+    if (!employeeName || !employeeName.trim()) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: 'Employee name is required to cancel booking'
+      };
+      return res.status(400).json(response);
+    }
+
+    // Get the booking to check ownership
+    const booking = await db.getBookingById(id);
+    if (!booking) {
       const response: ApiResponse<never> = {
         success: false,
         error: 'Booking not found'
@@ -146,18 +203,50 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return res.status(404).json(response);
     }
 
+    // Business rule: Can only cancel own bookings
+    if (booking.employeeName.toLowerCase() !== employeeName.trim().toLowerCase()) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: 'You can only cancel your own bookings'
+      };
+      return res.status(403).json(response);
+    }
+
+    // Business rule: Cannot cancel bookings for today or past dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const bookingDate = new Date(booking.date);
+    
+    if (bookingDate <= today) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: 'Cannot cancel bookings for today or past dates'
+      };
+      return res.status(400).json(response);
+    }
+
+    const deleted = await db.deleteBooking(id);
+    
+    if (!deleted) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: 'Failed to cancel booking'
+      };
+      return res.status(500).json(response);
+    }
+
     const response: ApiResponse<{ deleted: boolean }> = {
       success: true,
       data: { deleted: true }
     };
-    res.json(response);
+    return res.json(response);
   } catch (error) {
     console.error('Error deleting booking:', error);
     const response: ApiResponse<never> = {
       success: false,
-      error: 'Failed to delete booking'
+      error: 'Failed to cancel booking'
     };
-    res.status(500).json(response);
+    return res.status(500).json(response);
   }
 });
 

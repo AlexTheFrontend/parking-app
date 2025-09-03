@@ -26,37 +26,37 @@ export const ConfirmationScreen: React.FC<ConfirmationScreenProps> = ({
   onBackPress,
 }) => {
   const totalTokens = duration.tokens + (isPriority ? 5 : 0);
-  
+
   const formatDateTime = () => {
-    if (!selectedDateTime) return null;
-    
+    if (!selectedDateTime) {return null;}
+
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
-    
+
     let dateStr = '';
     if (selectedDateTime.date.toDateString() === today.toDateString()) {
       dateStr = 'Today';
     } else if (selectedDateTime.date.toDateString() === tomorrow.toDateString()) {
       dateStr = 'Tomorrow';
     } else {
-      dateStr = selectedDateTime.date.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        month: 'long', 
-        day: 'numeric' 
+      dateStr = selectedDateTime.date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric'
       });
     }
-    
+
     const [hours] = selectedDateTime.startTime.split(':').map(Number);
-    const timeStr = hours < 12 
+    const timeStr = hours < 12
       ? `${hours}:00 AM`
-      : hours === 12 
+      : hours === 12
       ? '12:00 PM'
       : `${hours - 12}:00 PM`;
-    
+
     return `${dateStr} at ${timeStr}`;
   };
-  
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}

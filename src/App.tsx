@@ -1,247 +1,150 @@
-import React, { useState, useEffect } from 'react';
-import { ParkingFlowStep, ParkingLocation, ParkingSession, Vehicle, PaymentMethod, ParkingDuration, TokenBalance, DateTimeSelection } from './types';
-import { LocationScreen } from './components/screens/LocationScreen';
-import { DateTimeSelectionScreen } from './components/screens/DateTimeSelectionScreen';
-import { DurationSelectionScreen } from './components/screens/DurationSelectionScreen';
-import { ConfirmationScreen } from './components/screens/ConfirmationScreen';
-import { ActiveParkingScreen } from './components/screens/ActiveParkingScreen';
-import { SessionSummaryScreen } from './components/screens/SessionSummaryScreen';
-import { TokenManager } from './utils/tokenManager';
-import './App.css';
+import React, { useState } from 'react';
+import { BookingForm, BookingList } from './components/organisms';
+import { useBookings } from './hooks/useBookings';
+import { useNotification } from './contexts';
+import { BookingFormData } from './types';
+import { Box, Container, Typography, useTheme } from '@mui/material';
+import { Button } from './components/atoms';
 
 function App() {
-  const [currentStep, setCurrentStep] = useState<ParkingFlowStep>('location');
-  const [currentSession, setCurrentSession] = useState<ParkingSession | null>(null);
-  const [currentUser] = useState('John Doe'); // Mock current user
-  const [selectedDateTime, setSelectedDateTime] = useState<DateTimeSelection | null>(null);
-  const [selectedDuration, setSelectedDuration] = useState<ParkingDuration | null>(null);
-  const [isPrioritySelected, setIsPrioritySelected] = useState(false);
-  const [tokenBalance, setTokenBalance] = useState<TokenBalance | null>(null);
+  const [currentUserName, setCurrentUserName] = useState('');
+  const theme = useTheme();
+  const { showSuccess, showError, showInfo, showWarning } = useNotification();
 
-  // Mock data
-  const mockLocation: ParkingLocation = {
-    name: 'Public Casual 2',
-    address: '146 Dominion Road, Mount Eden, Auckland, New Zealand',
-    availableSpaces: 2,
-    pricing: {
-      hourlyRate: 5.00,
-      maxDailyRate: 10.00,
-      processingFee: 0.50
-    },
-    closingTime: '11:30pm'
-  };
+  const {
+    bookings,
+    isLoading,
+    createBooking,
+    cancelBooking,
+    clearError,
+    isCreating,
+  } = useBookings();
 
-  const mockVehicle: Vehicle = {
-    type: 'car',
-    licensePlate: 'ABC123'
-  };
+  const handleSubmit = async (formData: BookingFormData) => {
+    setCurrentUserName(formData.employeeName);
 
-  const mockPaymentMethod: PaymentMethod = {
-    type: 'card',
-    last4: '4242'
-  };
-
-  // Initialize token balance
-  useEffect(() => {
-    const balance = TokenManager.getUserTokenBalance(currentUser);
-    setTokenBalance(balance);
-  }, [currentUser]);
-
-  const handleStartParking = () => {
-    setCurrentStep('datetime');
-  };
-
-  const handleReserveSpace = () => {
-    setCurrentStep('datetime');
-  };
-
-  const handleSelectDateTime = (dateTime: DateTimeSelection) => {
-    setSelectedDateTime(dateTime);
-    setCurrentStep('duration');
-  };
-
-  const handleSelectDuration = (duration: ParkingDuration, isPriority: boolean) => {
-    setSelectedDuration(duration);
-    setIsPrioritySelected(isPriority);
-    setCurrentStep('confirmation');
-  };
-
-  const handleConfirmParking = () => {
-    if (!selectedDuration || !tokenBalance || !selectedDateTime) return;
-    
-    const totalTokens = TokenManager.calculateTotalTokens(selectedDuration.hours, isPrioritySelected);
-    
-    // Create scheduled start time from selected date and time
-    const scheduledStart = new Date(selectedDateTime.date);
-    const [hours, minutes] = selectedDateTime.startTime.split(':').map(Number);
-    scheduledStart.setHours(hours, minutes, 0, 0);
-    
-    const isImmediateStart = scheduledStart.getTime() <= Date.now() + (5 * 60 * 1000); // Within 5 minutes
-    
-    // Spend tokens
-    if (TokenManager.spendTokens(currentUser, totalTokens, `Parking session: ${selectedDuration.label}${isPrioritySelected ? ' (Priority)' : ''}`, Date.now().toString())) {
-      // Create new session
-      const newSession: ParkingSession = {
-        id: Date.now().toString(),
-        employeeName: currentUser,
-        startTime: isImmediateStart ? new Date().toISOString() : scheduledStart.toISOString(),
-        scheduledStartTime: scheduledStart.toISOString(),
-        location: mockLocation,
-        vehicle: mockVehicle,
-        cost: 0,
-        status: isImmediateStart ? 'active' : 'scheduled',
-        tokensUsed: totalTokens,
-        duration: selectedDuration,
-        isPriority: isPrioritySelected
-      };
-      
-      setCurrentSession(newSession);
-      setCurrentStep(isImmediateStart ? 'active' : 'summary');
-      
-      // Update token balance
-      const updatedBalance = TokenManager.getUserTokenBalance(currentUser);
-      setTokenBalance(updatedBalance);
-    } else {
-      alert('Insufficient tokens!');
-    }
-  };
-
-  const handleStopParking = () => {
-    if (currentSession) {
-      const completedSession: ParkingSession = {
-        ...currentSession,
-        endTime: new Date().toISOString(),
-        status: 'completed'
-      };
-
-      setCurrentSession(completedSession);
-      setCurrentStep('summary');
-    }
-  };
-
-  const handleSupport = () => {
-    alert('Support feature coming soon!');
-  };
-
-  const handleBackPress = () => {
-    switch (currentStep) {
-      case 'datetime':
-        setCurrentStep('location');
-        break;
-      case 'duration':
-        setCurrentStep('datetime');
-        break;
-      case 'confirmation':
-        setCurrentStep('duration');
-        break;
-      case 'active':
-        setCurrentStep('confirmation');
-        break;
-      case 'summary':
-        setCurrentStep('location');
-        setCurrentSession(null);
-        setSelectedDateTime(null);
-        setSelectedDuration(null);
-        setIsPrioritySelected(false);
-        break;
-      default:
-        break;
-    }
-  };
-
-  const handleNewSession = () => {
-    setCurrentStep('location');
-    setCurrentSession(null);
-    setSelectedDateTime(null);
-    setSelectedDuration(null);
-    setIsPrioritySelected(false);
-  };
-
-  const renderCurrentScreen = () => {
-    if (!tokenBalance) {
-      return <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>;
+    if (!formData.selectedDate) {
+      // Return error result for validation failure
+      return { success: false, error: 'Selected date is required' };
     }
 
-    switch (currentStep) {
-      case 'location':
-        return (
-          <LocationScreen
-            location={mockLocation}
-            tokenBalance={tokenBalance}
-            onStartParking={handleStartParking}
-            onReserveSpace={handleReserveSpace}
-            onBackPress={() => {}}
-          />
-        );
-      
-      case 'datetime':
-        return (
-          <DateTimeSelectionScreen
-            location={mockLocation}
-            tokenBalance={tokenBalance}
-            onSelectDateTime={handleSelectDateTime}
-            onBackPress={handleBackPress}
-          />
-        );
-      
-      case 'duration':
-        return (
-          <DurationSelectionScreen
-            location={mockLocation}
-            tokenBalance={tokenBalance}
-            onSelectDuration={handleSelectDuration}
-            onBackPress={handleBackPress}
-          />
-        );
-      
-      case 'confirmation':
-        return selectedDuration ? (
-          <ConfirmationScreen
-            location={mockLocation}
-            vehicle={mockVehicle}
-            paymentMethod={mockPaymentMethod}
-            duration={selectedDuration}
-            isPriority={isPrioritySelected}
-            tokenBalance={tokenBalance}
-            selectedDateTime={selectedDateTime || undefined}
-            onConfirm={handleConfirmParking}
-            onBackPress={handleBackPress}
-          />
-        ) : null;
-      
-      case 'active':
-        return currentSession ? (
-          <ActiveParkingScreen
-            session={currentSession}
-            onStopParking={handleStopParking}
-            onSupport={handleSupport}
-            onBackPress={handleBackPress}
-          />
-        ) : null;
-      
-      case 'summary':
-        return currentSession ? (
-          <SessionSummaryScreen
-            session={currentSession}
-            onBackPress={handleBackPress}
-            onNewSession={handleNewSession}
-          />
-        ) : null;
-      
-      default:
-        return null;
+    const result = await createBooking({
+      employeeName: formData.employeeName,
+      date: formData.selectedDate.toISOString().split('T')[0]
+    });
+
+    if (result.success) {
+      showSuccess('Parking slot booked successfully!');
+    }
+
+    // Return the result so the form can determine whether to reset
+    return result;
+  };
+
+  const handleCancelBooking = async (bookingId: string, employeeName: string) => {
+    const result = await cancelBooking(bookingId, employeeName);
+
+    if (result.success) {
+      showSuccess('Booking cancelled successfully!');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {renderCurrentScreen()}
-    </div>
+    <Box 
+      sx={{ 
+        minHeight: '100vh',
+        background: `linear-gradient(135deg, ${theme.palette.grey[50]} 0%, ${theme.palette.primary.light} 50%, ${theme.palette.secondary.light} 100%)`,
+        py: { xs: 2, sm: 4 }
+      }}
+    >
+      <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3, lg: 4 } }}>
+        {/* Header */}
+        <Box textAlign="center" mb={{ xs: 4, sm: 6 }}>
+          <Box display="flex" alignItems="center" justifyContent="center" mb={3}>
+            <Typography 
+              variant="h2" 
+              component="h1" 
+              sx={{
+                fontSize: { xs: '2.5rem', sm: '3rem', lg: '3.75rem' },
+                fontWeight: 'bold',
+                background: 'linear-gradient(45deg, #1e293b 30%, #1e40af 50%, #3730a3 90%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                textAlign: 'center'
+              }}
+            >
+              Quantiful *Awesome* 1 bay parking
+            </Typography>
+          </Box>
+          <Typography 
+            variant="h6" 
+            color="text.secondary" 
+            sx={{ 
+              maxWidth: '48rem', 
+              mx: 'auto',
+              fontSize: { xs: '1rem', sm: '1.25rem' }
+            }}
+          >
+            Book your company parking space for the day. Only one slot available per day.
+          </Typography>
+        </Box>
+
+        {/* Main Content Grid */}
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' }, 
+          gap: { xs: 3, lg: 4 },
+          mb: 6
+        }}>
+          {/* Booking Form */}
+          <Box order={{ xs: 2, xl: 1 }}>
+            <BookingForm
+              onSubmit={handleSubmit}
+              isLoading={isCreating}
+            />
+          </Box>
+
+          {/* Booking List */}
+          <Box order={{ xs: 1, xl: 2 }}>
+            <BookingList
+              bookings={bookings}
+              onCancelBooking={handleCancelBooking}
+              currentUserName={currentUserName}
+              isLoading={isLoading}
+            />
+          </Box>
+        </Box>
+
+        {/* Footer */}
+        <Box textAlign="center" mt={6} pt={4} sx={{ borderTop: `1px solid ${theme.palette.divider}` }}>
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'column', sm: 'row' }, 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            gap: { xs: 2, sm: 4 },
+            mb: 2
+          }}>
+            <Box display="flex" alignItems="center">
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: 'linear-gradient(to right, #4ade80, #6ee7b7)' }} mr={1}></Box>
+              <Typography fontWeight="medium">Available</Typography>
+            </Box>
+            <Box display="flex" alignItems="center">
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: 'linear-gradient(to right, #60a5fa, #818cf8)' }} mr={1}></Box>
+              <Typography fontWeight="medium">Today</Typography>
+            </Box>
+            <Box display="flex" alignItems="center">
+              <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: 'linear-gradient(to right, #6b7280, #9ca3af)' }} mr={1}></Box>
+              <Typography fontWeight="medium">Past</Typography>
+            </Box>
+          </Box>
+          <Typography color="text.secondary" mt={2}>
+            Business days only (Monday-Friday) • One slot per day
+          </Typography>
+        </Box>
+      </Container>
+    </Box>
   );
 }
 

@@ -8,7 +8,7 @@ const cors_1 = __importDefault(require("cors"));
 const path_1 = __importDefault(require("path"));
 const bookings_1 = __importDefault(require("./routes/bookings"));
 const app = (0, express_1.default)();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 // Middleware
 app.use((0, cors_1.default)({
     origin: process.env.NODE_ENV === 'production'

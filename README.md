@@ -76,7 +76,7 @@ yarn dev
 # Terminal 1 - Frontend (React dev server on port 3000)
 yarn start
 
-# Terminal 2 - Backend (Express server on port 5000)
+# Terminal 2 - Backend (Express server on port 5001)
 yarn server:dev
 ```
 
@@ -141,7 +141,7 @@ POST /api/bookings
 ### Technical Features
 - 🏗️ **Atomic Design**: Scalable component architecture
 - 🔒 **Type Safety**: Full TypeScript coverage
-- 🧪 **Linting**: oxlint with type-aware rules
+- 🧪 **Linting**: with type-aware rules
 - 🗄️ **Database**: SQLite with automatic initialization
 - 🔄 **CORS**: Configured for cross-origin requests
 
@@ -152,7 +152,7 @@ POST /api/bookings
 | `yarn start` | Start React development server |
 | `yarn build` | Build production frontend |
 | `yarn test` | Run tests |
-| `yarn lint` | Run oxlint on source code |
+| `yarn lint` | Run lint on source code |
 | `yarn typecheck` | Run TypeScript type checking |
 | `yarn server` | Start backend server |
 | `yarn server:dev` | Start backend with auto-reload |
@@ -185,7 +185,7 @@ CREATE TABLE bookings (
 
 ```bash
 # Backend configuration
-PORT=5000
+PORT=5001
 NODE_ENV=development
 ```
 
@@ -207,7 +207,7 @@ NODE_ENV=development
 - CORS middleware
 
 ### Development
-- oxlint (type-aware linting)
+- es-lint (type-aware linting)
 - nodemon (auto-reload)
 - ts-node (TypeScript execution)
 - concurrently (parallel scripts)

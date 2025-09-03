@@ -96,6 +96,34 @@ class Database {
     });
   }
 
+  async getBookingById(id: string): Promise<Booking | null> {
+    return new Promise((resolve, reject) => {
+      const query = 'SELECT * FROM bookings WHERE id = ?';
+      
+      this.db.get(query, [id], (err, row: Booking | undefined) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(row || null);
+        }
+      });
+    });
+  }
+
+  async getBookingsByEmployee(employeeName: string): Promise<Booking[]> {
+    return new Promise((resolve, reject) => {
+      const query = 'SELECT * FROM bookings WHERE employeeName = ? ORDER BY date DESC';
+      
+      this.db.all(query, [employeeName], (err, rows: Booking[]) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
+    });
+  }
+
   async deleteBooking(id: string): Promise<boolean> {
     return new Promise((resolve, reject) => {
       const query = 'DELETE FROM bookings WHERE id = ?';

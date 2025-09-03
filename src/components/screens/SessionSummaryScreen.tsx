@@ -14,7 +14,7 @@ export const SessionSummaryScreen: React.FC<SessionSummaryScreenProps> = ({
   onNewSession,
 }) => {
   const calculateDuration = () => {
-    if (!session.endTime) return 0;
+    if (!session.endTime) {return 0;}
     const start = new Date(session.startTime).getTime();
     const end = new Date(session.endTime).getTime();
     return Math.floor((end - start) / 1000 / 60); // minutes
@@ -32,16 +32,16 @@ export const SessionSummaryScreen: React.FC<SessionSummaryScreenProps> = ({
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
     return {
-      date: date.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+      date: date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
       }),
-      time: date.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
+      time: date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
         minute: '2-digit',
-        hour12: true 
+        hour12: true
       })
     };
   };

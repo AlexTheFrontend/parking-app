@@ -1,10 +1,12 @@
 import React from 'react';
+import { Button as MuiButton, ButtonProps as MuiButtonProps, CircularProgress } from '@mui/material';
 
 export interface ButtonProps {
   children: React.ReactNode;
   onClick?: () => void;
   type?: 'button' | 'submit' | 'reset';
-  variant?: 'primary' | 'secondary';
+  variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'outline';
+  size?: 'small' | 'medium' | 'large';
   disabled?: boolean;
   loading?: boolean;
   className?: string;
@@ -15,32 +17,64 @@ export const Button: React.FC<ButtonProps> = ({
   onClick,
   type = 'button',
   variant = 'primary',
+  size = 'medium',
   disabled = false,
   loading = false,
   className = '',
 }) => {
-  const baseStyles = 'px-4 py-2 rounded-md font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 hover:scale-105 active:scale-95';
-  const variantStyles = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 hover:shadow-lg',
-    secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500 hover:shadow-md',
+  const getMuiVariant = (): MuiButtonProps['variant'] => {
+    switch (variant) {
+      case 'outline':
+        return 'outlined';
+      case 'primary':
+      case 'secondary':
+      case 'danger':
+      case 'success':
+      default:
+        return 'contained';
+    }
+  };
+
+  const getMuiColor = (): MuiButtonProps['color'] => {
+    switch (variant) {
+      case 'danger':
+        return 'error';
+      case 'success':
+        return 'success';
+      case 'secondary':
+        return 'secondary';
+      case 'outline':
+        return 'primary';
+      case 'primary':
+      default:
+        return 'primary';
+    }
+  };
+
+  const getMuiSize = (): MuiButtonProps['size'] => {
+    switch (size) {
+      case 'small':
+        return 'small';
+      case 'large':
+        return 'large';
+      case 'medium':
+      default:
+        return 'medium';
+    }
   };
 
   return (
-    <button
-      type={type}
+    <MuiButton
+      variant={getMuiVariant()}
+      color={getMuiColor()}
+      size={getMuiSize()}
       onClick={onClick}
       disabled={disabled || loading}
-      className={`${baseStyles} ${variantStyles[variant]} ${disabled || loading ? 'opacity-50 cursor-not-allowed hover:scale-100 hover:shadow-none' : ''} ${className}`}
+      className={className}
+      type={type}
+      startIcon={loading ? <CircularProgress size={16} /> : undefined}
     >
-      {loading ? (
-        <span className="flex items-center">
-          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          Loading...
-        </span>
-      ) : children}
-    </button>
+      {children}
+    </MuiButton>
   );
 };

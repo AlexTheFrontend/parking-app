@@ -22,8 +22,8 @@ export const LocationScreen: React.FC<LocationScreenProps> = ({
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Header */}
       <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200 px-6 py-4 flex items-center">
-        <button 
-          onClick={onBackPress} 
+        <button
+          onClick={onBackPress}
           className="mr-4 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium"
         >
           ← Back
@@ -62,7 +62,7 @@ export const LocationScreen: React.FC<LocationScreenProps> = ({
                 <div className="text-gray-900 font-medium">{location.address}</div>
                 <button className="text-blue-600 text-sm hover:text-blue-700 transition-colors">Get directions →</button>
               </div>
-              
+
               <div className="text-gray-700">
                 <strong>Hours:</strong> Closes at {location.closingTime}
               </div>

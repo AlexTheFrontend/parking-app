@@ -1,194 +1,163 @@
-import React, { useState } from 'react';
-import { ParkingLocation, ParkingDuration, TokenBalance, PARKING_DURATIONS, PRIORITY_PARKING_TOKENS } from '../../types';
+import React from 'react';
 import { Button } from '../atoms';
-import { TokenManager } from '../../utils/tokenManager';
 
-interface DurationSelectionScreenProps {
-  location: ParkingLocation;
-  tokenBalance: TokenBalance;
-  onSelectDuration: (duration: ParkingDuration, isPriority: boolean) => void;
-  onBackPress: () => void;
+export interface DurationSelectionScreenProps {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  duration: number;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  isPriority: boolean;
+  onNext: () => void;
+  onBack: () => void;
 }
 
 export const DurationSelectionScreen: React.FC<DurationSelectionScreenProps> = ({
-  location,
-  tokenBalance,
-  onSelectDuration,
-  onBackPress,
+  duration, // eslint-disable-line @typescript-eslint/no-unused-vars
+  isPriority, // eslint-disable-line @typescript-eslint/no-unused-vars
+  onNext,
+  onBack,
 }) => {
-  const [selectedDuration, setSelectedDuration] = useState<ParkingDuration | null>(null);
-  const [isPrioritySelected, setIsPrioritySelected] = useState(false);
+  const [selectedDuration, setSelectedDuration] = React.useState<number | null>(null);
+  const [isPrioritySelected, setIsPrioritySelected] = React.useState(false);
 
-  const calculateTotalTokens = (duration: ParkingDuration | null, priority: boolean) => {
-    if (!duration) return 0;
-    return duration.tokens + (priority ? PRIORITY_PARKING_TOKENS : 0);
+  const availableDurations = [
+    { value: 1, label: '1 Hour', tokens: 1 },
+    { value: 2, label: '2 Hours', tokens: 2 },
+    { value: 4, label: '4 Hours', tokens: 4 },
+    { value: 8, label: '8 Hours', tokens: 8 },
+  ];
+
+  const priorityTokens = 2;
+
+  const calculateTotalTokens = (duration: number | null, priority: boolean) => {
+    if (!duration) {return 0;}
+    const baseTokens = availableDurations.find(d => d.value === duration)?.tokens || 0;
+    return priority ? baseTokens + priorityTokens : baseTokens;
   };
 
-  const canAfford = (tokens: number) => tokenBalance.currentTokens >= tokens;
+  const handleDurationSelect = (durationValue: number) => {
+    setSelectedDuration(durationValue);
+  };
 
-  const handleContinue = () => {
+  const handlePriorityToggle = () => {
+    setIsPrioritySelected(!isPrioritySelected);
+  };
+
+  const handleNext = () => {
     if (selectedDuration) {
-      onSelectDuration(selectedDuration, isPrioritySelected);
+      onNext();
     }
   };
 
-  const totalTokensRequired = calculateTotalTokens(selectedDuration, isPrioritySelected);
-  const canAffordSelection = canAfford(totalTokensRequired);
+  const canProceed = selectedDuration !== null;
+  const totalTokens = calculateTotalTokens(selectedDuration, isPrioritySelected);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      {/* Header */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200 px-6 py-4 flex items-center">
-        <button 
-          onClick={onBackPress} 
-          className="mr-4 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium"
-        >
-          ← Back
-        </button>
-        <h1 className="text-lg font-semibold text-gray-900">Select Duration</h1>
-      </div>
-
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        {/* Token Balance Card */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-2xl font-bold text-gray-900">{tokenBalance.currentTokens}</div>
-              <div className="text-sm text-gray-600">Available Tokens</div>
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-gray-500">Refreshes in</div>
-              <div className="text-sm font-medium text-blue-600">{TokenManager.getTimeUntilRefresh()}</div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">Select Duration</h1>
+          <p className="text-lg text-gray-600">How long do you need to park?</p>
         </div>
 
-        {/* Location Info */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
-          <h3 className="text-xl font-bold text-gray-900 mb-2">{location.name}</h3>
-          <p className="text-gray-600 mb-4">{location.address}</p>
-          <div className="text-sm text-gray-600">
-            <strong>Availability:</strong> {location.availableSpaces} spaces available
-          </div>
-        </div>
-
-        {/* Duration Options */}
-        <div className="mb-8">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">Select parking duration</h3>
-          
-          <div className="grid gap-4">
-            {PARKING_DURATIONS.map((duration) => {
-              const isSelected = selectedDuration?.hours === duration.hours;
-              const isAffordable = canAfford(duration.tokens);
-              
-              return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Duration Selection */}
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Parking Duration</h2>
+            <div className="grid grid-cols-2 gap-4">
+              {availableDurations.map((option) => (
                 <button
-                  key={duration.hours}
-                  onClick={() => setSelectedDuration(duration)}
-                  disabled={!isAffordable}
-                  className={`relative p-6 rounded-2xl border-2 text-left transition-all transform ${
-                    isSelected
-                      ? 'border-blue-500 bg-blue-50 shadow-lg scale-105'
-                      : isAffordable
-                      ? 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-lg hover:scale-105'
-                      : 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
+                  key={option.value}
+                  onClick={() => handleDurationSelect(option.value)}
+                  className={`p-6 rounded-xl border-2 transition-all duration-200 ${
+                    selectedDuration === option.value
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-lg font-bold text-gray-900">{duration.label}</div>
-                      <div className="text-sm text-gray-600">Perfect for {duration.hours <= 3 ? 'quick visits' : duration.hours <= 6 ? 'half day' : 'full day'}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-blue-600">{duration.tokens}</div>
-                      <div className="text-sm text-gray-500">token{duration.tokens !== 1 ? 's' : ''}</div>
-                    </div>
-                  </div>
+                  <div className="text-lg font-bold">{option.label}</div>
+                  <div className="text-sm text-gray-500">{option.tokens} tokens</div>
                 </button>
-              );
-            })}
+              ))}
+            </div>
+          </div>
+
+          {/* Priority Selection */}
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Priority Parking</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-xl">
+                <div>
+                  <div className="font-medium text-gray-900">Standard Parking</div>
+                  <div className="text-sm text-gray-500">Regular availability</div>
+                </div>
+                <div className="text-lg font-bold text-gray-900">0 tokens</div>
+              </div>
+
+              <button
+                onClick={handlePriorityToggle}
+                className={`w-full p-4 rounded-xl border-2 transition-all duration-200 ${
+                  isPrioritySelected
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">Priority Parking</div>
+                    <div className="text-sm text-gray-500">Guaranteed spot + 2 tokens</div>
+                  </div>
+                  <div className="text-lg font-bold">+2 tokens</div>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Priority Parking */}
-        <div className="mb-8">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">Priority options</h3>
-          
-          <button
-            onClick={() => setIsPrioritySelected(!isPrioritySelected)}
-            disabled={!canAfford(PRIORITY_PARKING_TOKENS) || !selectedDuration}
-            className={`relative w-full p-6 rounded-2xl border-2 text-left transition-all transform ${
-              isPrioritySelected
-                ? 'border-purple-500 bg-purple-50 shadow-lg scale-105'
-                : canAfford(PRIORITY_PARKING_TOKENS) && selectedDuration
-                ? 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-lg hover:scale-105'
-                : 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-lg font-bold text-gray-900">Priority Parking</div>
-                <div className="text-sm text-gray-600">Best available spots, closer to entrance</div>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-purple-600">+{PRIORITY_PARKING_TOKENS}</div>
-                <div className="text-sm text-gray-500">tokens</div>
-              </div>
-            </div>
-          </button>
-        </div>
-
-        {/* Selection Summary */}
+        {/* Token Summary */}
         {selectedDuration && (
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Selection Summary</h3>
+          <div className="bg-white rounded-2xl shadow-xl p-8 mt-8">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Token Summary</h3>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Duration:</span>
-                <span className="font-bold text-gray-900">{selectedDuration.label}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Base tokens:</span>
-                <span className="font-bold text-blue-600">{selectedDuration.tokens}</span>
+                <span className="text-gray-600">Base Duration:</span>
+                <span className="font-bold text-gray-900">
+                  {availableDurations.find(d => d.value === selectedDuration)?.tokens} tokens
+                </span>
               </div>
               {isPrioritySelected && (
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Priority parking:</span>
-                  <span className="font-bold text-purple-600">+{PRIORITY_PARKING_TOKENS}</span>
+                  <span className="text-gray-600">Priority Fee:</span>
+                  <span className="font-bold text-gray-900">+{priorityTokens} tokens</span>
                 </div>
               )}
-              <div className="border-t border-gray-200 pt-3 mt-4">
+              <div className="border-t pt-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-lg font-bold text-gray-900">Total tokens:</span>
-                  <span className={`text-2xl font-bold ${canAffordSelection ? 'text-gray-900' : 'text-red-600'}`}>
-                    {totalTokensRequired}
-                  </span>
+                  <span className="text-lg font-bold text-gray-900">Total:</span>
+                  <span className="text-2xl font-bold text-blue-600">{totalTokens} tokens</span>
                 </div>
               </div>
-              {!canAffordSelection && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
-                  <p className="text-red-700 text-sm font-medium">
-                    ⚠️ Insufficient tokens. You need {totalTokensRequired - tokenBalance.currentTokens} more tokens.
-                  </p>
-                </div>
-              )}
             </div>
           </div>
         )}
 
-        {/* Continue Button */}
-        <Button
-          onClick={handleContinue}
-          disabled={!selectedDuration || !canAffordSelection}
-          variant="primary"
-          className={`w-full font-bold py-4 px-8 text-lg rounded-2xl shadow-lg transition-all duration-200 transform ${
-            !selectedDuration || !canAffordSelection
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 hover:shadow-xl hover:scale-105 text-white'
-          }`}
-        >
-          Continue to Confirmation →
-        </Button>
+        {/* Navigation */}
+        <div className="flex justify-between mt-8">
+          <Button
+            onClick={onBack}
+            variant="secondary"
+            size="large"
+          >
+            Back
+          </Button>
+          <Button
+            onClick={handleNext}
+            variant="primary"
+            size="large"
+            disabled={!selectedDuration}
+          >
+            Next
+          </Button>
+        </div>
       </div>
     </div>
   );
