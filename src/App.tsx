@@ -1,160 +1,246 @@
-import React, { useState } from 'react';
-import { BookingForm, BookingList } from './components';
-import { BookingFormData } from './types';
-import { useBookings } from './hooks';
+import React, { useState, useEffect } from 'react';
+import { ParkingFlowStep, ParkingLocation, ParkingSession, Vehicle, PaymentMethod, ParkingDuration, TokenBalance, DateTimeSelection } from './types';
+import { LocationScreen } from './components/screens/LocationScreen';
+import { DateTimeSelectionScreen } from './components/screens/DateTimeSelectionScreen';
+import { DurationSelectionScreen } from './components/screens/DurationSelectionScreen';
+import { ConfirmationScreen } from './components/screens/ConfirmationScreen';
+import { ActiveParkingScreen } from './components/screens/ActiveParkingScreen';
+import { SessionSummaryScreen } from './components/screens/SessionSummaryScreen';
+import { TokenManager } from './utils/tokenManager';
 import './App.css';
 
 function App() {
-  const { 
-    bookings, 
-    isLoading: bookingsLoading, 
-    error: bookingsError,
-    createBooking, 
-    cancelBooking,
-    refreshBookings
-  } = useBookings();
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentStep, setCurrentStep] = useState<ParkingFlowStep>('location');
+  const [currentSession, setCurrentSession] = useState<ParkingSession | null>(null);
   const [currentUser] = useState('John Doe'); // Mock current user
-  const [notification, setNotification] = useState<{type: 'success' | 'error'; message: string} | null>(null);
+  const [selectedDateTime, setSelectedDateTime] = useState<DateTimeSelection | null>(null);
+  const [selectedDuration, setSelectedDuration] = useState<ParkingDuration | null>(null);
+  const [isPrioritySelected, setIsPrioritySelected] = useState(false);
+  const [tokenBalance, setTokenBalance] = useState<TokenBalance | null>(null);
 
-  const showNotification = (type: 'success' | 'error', message: string) => {
-    setNotification({ type, message });
-    setTimeout(() => setNotification(null), 5000);
+  // Mock data
+  const mockLocation: ParkingLocation = {
+    name: 'Public Casual 2',
+    address: '146 Dominion Road, Mount Eden, Auckland, New Zealand',
+    availableSpaces: 2,
+    pricing: {
+      hourlyRate: 5.00,
+      maxDailyRate: 10.00,
+      processingFee: 0.50
+    },
+    closingTime: '11:30pm'
   };
 
-  const handleBookingSubmit = async (formData: BookingFormData) => {
-    if (!formData.selectedDate) return;
+  const mockVehicle: Vehicle = {
+    type: 'car',
+    licensePlate: 'ABC123'
+  };
+
+  const mockPaymentMethod: PaymentMethod = {
+    type: 'card',
+    last4: '4242'
+  };
+
+  // Initialize token balance
+  useEffect(() => {
+    const balance = TokenManager.getUserTokenBalance(currentUser);
+    setTokenBalance(balance);
+  }, [currentUser]);
+
+  const handleStartParking = () => {
+    setCurrentStep('datetime');
+  };
+
+  const handleReserveSpace = () => {
+    setCurrentStep('datetime');
+  };
+
+  const handleSelectDateTime = (dateTime: DateTimeSelection) => {
+    setSelectedDateTime(dateTime);
+    setCurrentStep('duration');
+  };
+
+  const handleSelectDuration = (duration: ParkingDuration, isPriority: boolean) => {
+    setSelectedDuration(duration);
+    setIsPrioritySelected(isPriority);
+    setCurrentStep('confirmation');
+  };
+
+  const handleConfirmParking = () => {
+    if (!selectedDuration || !tokenBalance || !selectedDateTime) return;
     
-    setIsSubmitting(true);
+    const totalTokens = TokenManager.calculateTotalTokens(selectedDuration.hours, isPrioritySelected);
     
-    const result = await createBooking({
-      employeeName: formData.employeeName,
-      date: formData.selectedDate.toISOString().split('T')[0],
-    });
+    // Create scheduled start time from selected date and time
+    const scheduledStart = new Date(selectedDateTime.date);
+    const [hours, minutes] = selectedDateTime.startTime.split(':').map(Number);
+    scheduledStart.setHours(hours, minutes, 0, 0);
     
-    setIsSubmitting(false);
+    const isImmediateStart = scheduledStart.getTime() <= Date.now() + (5 * 60 * 1000); // Within 5 minutes
     
-    if (result.success) {
-      showNotification('success', 'Booking created successfully!');
+    // Spend tokens
+    if (TokenManager.spendTokens(currentUser, totalTokens, `Parking session: ${selectedDuration.label}${isPrioritySelected ? ' (Priority)' : ''}`, Date.now().toString())) {
+      // Create new session
+      const newSession: ParkingSession = {
+        id: Date.now().toString(),
+        employeeName: currentUser,
+        startTime: isImmediateStart ? new Date().toISOString() : scheduledStart.toISOString(),
+        scheduledStartTime: scheduledStart.toISOString(),
+        location: mockLocation,
+        vehicle: mockVehicle,
+        cost: 0,
+        status: isImmediateStart ? 'active' : 'scheduled',
+        tokensUsed: totalTokens,
+        duration: selectedDuration,
+        isPriority: isPrioritySelected
+      };
+      
+      setCurrentSession(newSession);
+      setCurrentStep(isImmediateStart ? 'active' : 'summary');
+      
+      // Update token balance
+      const updatedBalance = TokenManager.getUserTokenBalance(currentUser);
+      setTokenBalance(updatedBalance);
     } else {
-      showNotification('error', result.error || 'Failed to create booking');
+      alert('Insufficient tokens!');
     }
   };
 
-  const handleCancelBooking = async (bookingId: string) => {
-    if (window.confirm('Are you sure you want to cancel this booking?')) {
-      const result = await cancelBooking(bookingId);
+  const handleStopParking = () => {
+    if (currentSession) {
+      const completedSession: ParkingSession = {
+        ...currentSession,
+        endTime: new Date().toISOString(),
+        status: 'completed'
+      };
+
+      setCurrentSession(completedSession);
+      setCurrentStep('summary');
+    }
+  };
+
+  const handleSupport = () => {
+    alert('Support feature coming soon!');
+  };
+
+  const handleBackPress = () => {
+    switch (currentStep) {
+      case 'datetime':
+        setCurrentStep('location');
+        break;
+      case 'duration':
+        setCurrentStep('datetime');
+        break;
+      case 'confirmation':
+        setCurrentStep('duration');
+        break;
+      case 'active':
+        setCurrentStep('confirmation');
+        break;
+      case 'summary':
+        setCurrentStep('location');
+        setCurrentSession(null);
+        setSelectedDateTime(null);
+        setSelectedDuration(null);
+        setIsPrioritySelected(false);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleNewSession = () => {
+    setCurrentStep('location');
+    setCurrentSession(null);
+    setSelectedDateTime(null);
+    setSelectedDuration(null);
+    setIsPrioritySelected(false);
+  };
+
+  const renderCurrentScreen = () => {
+    if (!tokenBalance) {
+      return <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>;
+    }
+
+    switch (currentStep) {
+      case 'location':
+        return (
+          <LocationScreen
+            location={mockLocation}
+            tokenBalance={tokenBalance}
+            onStartParking={handleStartParking}
+            onReserveSpace={handleReserveSpace}
+            onBackPress={() => {}}
+          />
+        );
       
-      if (result.success) {
-        showNotification('success', 'Booking cancelled successfully!');
-      } else {
-        showNotification('error', result.error || 'Failed to cancel booking');
-      }
+      case 'datetime':
+        return (
+          <DateTimeSelectionScreen
+            location={mockLocation}
+            tokenBalance={tokenBalance}
+            onSelectDateTime={handleSelectDateTime}
+            onBackPress={handleBackPress}
+          />
+        );
+      
+      case 'duration':
+        return (
+          <DurationSelectionScreen
+            location={mockLocation}
+            tokenBalance={tokenBalance}
+            onSelectDuration={handleSelectDuration}
+            onBackPress={handleBackPress}
+          />
+        );
+      
+      case 'confirmation':
+        return selectedDuration ? (
+          <ConfirmationScreen
+            location={mockLocation}
+            vehicle={mockVehicle}
+            paymentMethod={mockPaymentMethod}
+            duration={selectedDuration}
+            isPriority={isPrioritySelected}
+            tokenBalance={tokenBalance}
+            selectedDateTime={selectedDateTime || undefined}
+            onConfirm={handleConfirmParking}
+            onBackPress={handleBackPress}
+          />
+        ) : null;
+      
+      case 'active':
+        return currentSession ? (
+          <ActiveParkingScreen
+            session={currentSession}
+            onStopParking={handleStopParking}
+            onSupport={handleSupport}
+            onBackPress={handleBackPress}
+          />
+        ) : null;
+      
+      case 'summary':
+        return currentSession ? (
+          <SessionSummaryScreen
+            session={currentSession}
+            onBackPress={handleBackPress}
+            onNewSession={handleNewSession}
+          />
+        ) : null;
+      
+      default:
+        return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
-      <div className="container mx-auto px-4 max-w-6xl">
-        {/* Notification */}
-        {notification && (
-          <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm animate-[slideInRight_0.3s_ease-out] ${
-            notification.type === 'success' 
-              ? 'bg-green-100 text-green-800 border-l-4 border-green-500' 
-              : 'bg-red-100 text-red-800 border-l-4 border-red-500'
-          }`}>
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                {notification.type === 'success' ? '✓' : '✕'}
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium">{notification.message}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            🅿️ Parking Slot Booking
-          </h1>
-          <p className="text-lg text-gray-600">
-            Manage your company's shared parking space
-          </p>
-        </div>
-
-        {/* Global Error State */}
-        {bookingsError && (
-          <div className="mb-8 bg-red-100 border-l-4 border-red-500 text-red-800 p-4 rounded-lg">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <span className="text-lg">⚠️</span>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium">Connection Error</h3>
-                <p className="text-sm">{bookingsError}</p>
-                <button
-                  onClick={refreshBookings}
-                  className="mt-2 text-sm underline hover:no-underline"
-                >
-                  Try Again
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Booking Form */}
-          <div>
-            <BookingForm
-              onSubmit={handleBookingSubmit}
-              isLoading={isSubmitting}
-            />
-            
-            {/* Status Info */}
-            <div className="mt-6 bg-white rounded-lg shadow-md p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                System Status
-              </h3>
-              <div className="flex items-center space-x-4 text-sm">
-                <div className="flex items-center">
-                  <div className={`w-3 h-3 rounded-full mr-2 ${bookingsError ? 'bg-red-500' : 'bg-green-500'}`}></div>
-                  <span className="text-gray-600">
-                    {bookingsError ? 'Connection Error' : 'System Online'}
-                  </span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                  <span className="text-gray-600">Current User: {currentUser}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Booking List */}
-          <div>
-            <BookingList
-              bookings={bookings}
-              onCancelBooking={handleCancelBooking}
-              currentUserName={currentUser}
-              isLoading={bookingsLoading}
-            />
-          </div>
-        </div>
-        
-        {/* Footer Info */}
-        <div className="mt-12 text-center text-sm text-gray-600">
-          <p className="mb-2">✨ Built with Atomic Design & Full-Stack TypeScript</p>
-          <p>
-            <strong>Frontend:</strong> React + TypeScript + Tailwind | 
-            <strong> Backend:</strong> Node.js + Express + SQLite | 
-            <strong> Architecture:</strong> Atomic Design
-          </p>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      {renderCurrentScreen()}
     </div>
   );
 }
