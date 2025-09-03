@@ -7,7 +7,7 @@ A full-stack TypeScript application for managing a shared company parking space.
 ### Frontend (React + TypeScript)
 - **Atomic Design Structure**: Components organized as Atoms, Molecules, and Organisms
 - **TypeScript**: Full type safety throughout the application
-- **Tailwind CSS**: Modern utility-first styling with custom animations
+- **Material UI**: Modern utility-first styling with custom animations
 - **Custom Hooks**: State management with `useBookings` hook
 - **API Integration**: RESTful communication with backend
 
@@ -66,7 +66,7 @@ parking-app/
 
 ### Development
 
-**Option 1: Run both frontend and backend simultaneously**
+**Option 1 (preffered option): Run both frontend and backend simultaneously**
 ```bash
 yarn dev
 ```
