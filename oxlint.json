@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "rules": {
+    "typescript": "error",
+    "react": "error",
+    "jsx-a11y": "warn",
+    "import": "warn"
+  },
+  "env": {
+    "browser": true,
+    "es2022": true,
+    "node": true
+  },
+  "globals": {
+    "JSX": "readonly"
+  }
+}

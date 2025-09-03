@@ -1,0 +1,72 @@
+{
+  "name": "parking-app",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "gsap": "^3.13.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-scripts": "5.0.1",
+    "sqlite3": "^5.1.7",
+    "uuid": "^11.1.0",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "lint": "oxlint src",
+    "lint:fix": "oxlint src --fix",
+    "typecheck": "tsc --noEmit",
+    "server": "cd server && ts-node src/server.ts",
+    "server:dev": "cd server && nodemon src/server.ts",
+    "server:build": "cd server && tsc",
+    "server:start": "cd server && node dist/server.js",
+    "dev": "concurrently \"yarn start\" \"yarn server:dev\"",
+    "build:all": "yarn build && yarn server:build"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.12",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "@types/sqlite3": "^5.1.0",
+    "@types/uuid": "^10.0.0",
+    "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.1",
+    "nodemon": "^3.1.10",
+    "oxlint": "^1.14.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}
